@@ -1,0 +1,191 @@
+\documentclass{article}
+\title{Ejemplo de problema tipo ANCOVA}
+\author{Tema 1: Regresión Lineal Múltiple}
+\usepackage[a4paper, total={6.5in, 10in}]{geometry} %Para modificar margenes
+\setlength{\parindent}{0pt} %Remover identación
+\date{Septiembre 2022}
+\usepackage{Sweave}
+\DefineVerbatimEnvironment{Sinput}{Verbatim} {xleftmargin=0em,frame=single} %Modificar estilo de codigo
+\DefineVerbatimEnvironment{Soutput}{Verbatim}{xleftmargin=0em,frame=single}
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\maketitle
+
+\noindent En el siguiente ejemplo se buscará explicar el deterioro en la capacidad pulmonar de individuos que han sido
+expuestos a distintos niveles de cadmio vs individuos que no fueron expuestos.
+
+<<>>=
+library(multcomp)
+library(GGally)
+library(ggplot2)
+@
+
+<< results=hide>>=
+rm(list = ls(all.names = TRUE))
+gc()
+
+#setwd("~/GitHub/Notas 2023-1/ApreEstAut")
+options(digits=4)
+@
+
+<<>>=
+CADdata <- read.table("C:/Users/ncr/Downloads/cadmium.txt",header=TRUE, sep=" ", 
+                      dec=".")
+str(CADdata)
+print(head(CADdata,10))
+@
+
+Las variables del dataset son:
+
+\begin{itemize}
+  \item group: Indica a que grupo pertenece la observación: alta exposición al cadmio, baja exposición, no tuvo exposición al cadmio.
+  \item age: Edad de las persona
+  \item vitcap: Indicador de capacidad pulmonar, entre más alto más capacidad
+\end{itemize}
+
+
+
+
+
+
+
+\begin{figure}[t!]
+  \centering
+<<someLabel,fig=TRUE,width=8>>=
+hist(CADdata$group)
+@
+  \caption{Some caption.}
+  \label{fig:someLabel}
+\end{figure}\leavevmode\newline
+
+
+La variable grupo debe ser convertida a factor
+
+Esta variable indica si el paciente fue expuesto al cadmio en niveles "Alto", "Bajo" o "No fue expuesto"
+
+<<>>=
+CADdata$group=factor(CADdata$group, levels=c(1,2,3), labels=c("High","Low","No") )
+str(CADdata)
+@
+
+Una gráfica global que representan pares de variables
+
+\begin{figure}[h!]
+  \centering
+<<fig=TRUE,width=8>>=
+#X11()
+library(GGally)
+ggpairs(data=CADdata, title="Datos", aes(colour = group))
+@
+  \caption{Some caption.}
+  \label{fig:someLabel}
+\end{figure}\leavevmode\newline
+
+
+\begin{figure}[h!]
+  \centering
+<<fig=TRUE,width=8>>=
+#Otras gráficas
+#X11()
+par(mfrow=c(1,2)); par(mar=c(4,4,2,1.5))
+boxplot(vitcap ~ group, data = CADdata, col = "white", outline=FALSE)
+stripchart(vitcap ~ group, data = CADdata,
+           method = "jitter",
+           pch = 19,
+           col = 2:4,
+           vertical = TRUE,
+           add = TRUE)
+boxplot(age ~ group, data = CADdata, col = "white", outline=FALSE)
+stripchart(age ~ group, data = CADdata,
+           method = "jitter",
+           pch = 19,
+           col = 2:4,
+           vertical = TRUE,
+           add = TRUE)
+@
+  \caption{Some caption.}
+  \label{fig:someLabel}
+\end{figure}\leavevmode\newline
+
+\newpage
+
+\clearpage
+
+La gráfica de interés en todos los datos
+
+\begin{figure}[h!]
+  \centering
+<<fig=TRUE,width=8>>=
+#X11()
+par(mfrow=c(1,2)); par(mar=c(4,4,2,1.5))
+
+plot(CADdata$age, CADdata$vitcap, col=c("green","red","blue")[CADdata$group]
+     ,xlab = "Age",
+     ylab = "Vital Capacity (L)",xlim=c(20,68), ylim=c(2.5,5.6),
+     pch=c(16,16,16), main = "Exposure to cadmium")
+
+legend(60,5.8, levels(CADdata$group),
+       col=c("green","red","blue"), pch = c(16,16,16) )
+
+boxplot(vitcap ~ group, data = CADdata, col = "white", outline=FALSE)
+stripchart(vitcap ~ group, data = CADdata,
+           method = "jitter",
+           pch = 19,
+           col = c("green","red","blue"),
+           vertical = TRUE,
+           add = TRUE)
+@
+  \caption{Some caption.}
+  \label{fig:someLabel}
+\end{figure}\leavevmode\newline
+
+
+\pagebreak
+
+\newpage
+
+
+Filtraremos los datos por edad
+
+Aplicamos este filtro ya que al ser un problema tipo ANCOVA se quiere que la muestra sea homogénea en cada uno de los grupos a estudiar, en este caso vemos que del grupo de personas con alta exposición al cadmio no se tienen personas menores a 30 años, entonces filtramos la edad para que todos los grupos sean homogeneos en edad. 
+
+En los problema tipo ANCOVA se requiere que las poblaciones sean lo más homogeneas posible y que las unicas diferencias entre cada grupo se deban a cierta exposición a alguno tratamiento.
+
+<<>>=
+summary(CADdata[CADdata$group=="High",])
+CADdata=CADdata[CADdata$age>=39,]
+@
+
+Nuevamente visualizamos la gráfica
+
+
+<<fig=TRUE,width=8>>=
+#X11()
+par(mfrow=c(1,2)); par(mar=c(4,4,2,1.5))
+
+plot(CADdata$age, CADdata$vitcap, col=c("green","red","blue")[CADdata$group],
+     xlab = "Age", ylab = "Vital Capacity (L)",xlim=c(35,68), ylim=c(2.5,5.6),
+     pch=c(16,16,16), main = "Exposure to cadmium")
+
+legend(60,5.8, levels(CADdata$group),
+       col=c("green","red","blue"), pch = c(16,16,16) )
+
+boxplot(vitcap ~ group, data = CADdata, col = "white", outline=FALSE)
+stripchart(vitcap ~ group, data = CADdata, method = "jitter",
+           pch = 19, col = c("green","red","blue"), vertical = TRUE,
+           add = TRUE)
+@
+\leavevmode\newline
+
+Importante analizar el metadato de niveles, pues el primero será el nivel de referencia en los modelos
+
+Aquí el nivel referencia es High, es decir, R va a crear variables dummy para las categorias "Low" y "No".
+Se define la categoria de referencia como "High"
+
+<<>>=
+levels(CADdata$group)
+@
+
+
+
+\end{document}
